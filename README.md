@@ -58,7 +58,3 @@ During build, the action sets `BUNLI_RELEASE_VERSION=<version>` in the environme
 ### Optional Config File
 
 If `.bunli-releaser.yml` exists in `workdir`, the action will read it (inputs override). v1 only uses a small subset of the proposed schema.
-
-## Planning docs
-
-Planning docs live in `.scratchpad/` (gitignored) for iteration during development.
