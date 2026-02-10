@@ -1,5 +1,4 @@
 node_modules/
-dist/
 .scratchpad/
 .DS_Store
 .env

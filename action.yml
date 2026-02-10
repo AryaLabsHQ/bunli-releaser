@@ -1,0 +1,62 @@
+name: bunli-releaser
+description: GoReleaser-like GitHub Action for Bunli CLIs: build multi-platform standalone binaries, publish GitHub Releases, and update Homebrew taps.
+author: AryaLabsHQ
+
+inputs:
+  github-token:
+    description: Token for creating/updating GitHub Releases in the current repo.
+    required: true
+
+  bun-version:
+    description: Bun version to use (e.g. 1.3.8 or latest). Defaults to a pinned version for stability.
+    required: false
+
+  workdir:
+    description: Working directory where the Bunli CLI project lives (relative to repository root).
+    required: false
+    default: "."
+
+  targets:
+    description: Target list (comma-separated) or "all". Example: "darwin-arm64,linux-x64" or "all".
+    required: false
+
+  artifact-name:
+    description: Base binary name. Defaults to package.json name normalized.
+    required: false
+
+  brew-tap:
+    description: Homebrew tap repo in owner/repo format.
+    required: true
+
+  brew-token:
+    description: Token with push rights to the Homebrew tap repo.
+    required: true
+
+  brew-formula-path:
+    description: Path in the tap repo (e.g. Formula/mycli.rb). Defaults to Formula/<formula>.rb derived from artifact-name.
+    required: false
+
+  brew-pr:
+    description: If true, open a PR in the tap repo instead of pushing directly (default false).
+    required: false
+    default: "false"
+
+  brew-commit-message:
+    description: Commit message for updating the formula. Defaults to "chore: update <name> to <version>".
+    required: false
+
+outputs:
+  version:
+    description: Parsed version (without the leading v).
+  tag:
+    description: Parsed tag (vX.Y.Z).
+  release-url:
+    description: URL of the GitHub Release.
+
+runs:
+  using: node24
+  main: dist/index.js
+
+branding:
+  icon: package
+  color: orange
