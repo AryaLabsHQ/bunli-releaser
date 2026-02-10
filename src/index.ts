@@ -18,9 +18,9 @@ import type { TargetTriple } from './types'
 
 async function run(): Promise<void> {
   const githubToken = core.getInput('github-token', { required: true })
-  const bunVersion = core.getInput('bun-version') || '1.3.8'
+  const bunVersion = (core.getInput('bun-version') || '').trim() || '1.3.8'
   const workdirInput = core.getInput('workdir') || '.'
-  const targetsInput = core.getInput('targets') || 'all'
+  const targetsInputRaw = (core.getInput('targets') || '').trim()
   const artifactNameInput = core.getInput('artifact-name') || undefined
 
   const brewTap = core.getInput('brew-tap', { required: true })
@@ -42,7 +42,7 @@ async function run(): Promise<void> {
   await ensureBun(bunVersion)
 
   const cfgTargets = config?.build?.targets?.join(',')
-  const targets = parseTargets(targetsInput || cfgTargets || 'all')
+  const targets = parseTargets(targetsInputRaw || cfgTargets || 'all')
 
   const projectMeta = await readProjectMeta(workdir, artifactNameInput || config?.project?.binary)
   core.info(`Binary name: ${projectMeta.binary}`)

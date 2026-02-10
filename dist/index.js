@@ -657,9 +657,9 @@ async function currentBranch(dir) {
 // src/index.ts
 async function run() {
   const githubToken = core7.getInput("github-token", { required: true });
-  const bunVersion = core7.getInput("bun-version") || "1.3.8";
+  const bunVersion = (core7.getInput("bun-version") || "").trim() || "1.3.8";
   const workdirInput = core7.getInput("workdir") || ".";
-  const targetsInput = core7.getInput("targets") || "all";
+  const targetsInputRaw = (core7.getInput("targets") || "").trim();
   const artifactNameInput = core7.getInput("artifact-name") || void 0;
   const brewTap = core7.getInput("brew-tap", { required: true });
   const brewToken = core7.getInput("brew-token", { required: true });
@@ -675,7 +675,7 @@ async function run() {
   core7.setOutput("tag", parsed.tag);
   await ensureBun(bunVersion);
   const cfgTargets = config?.build?.targets?.join(",");
-  const targets = parseTargets(targetsInput || cfgTargets || "all");
+  const targets = parseTargets(targetsInputRaw || cfgTargets || "all");
   const projectMeta = await readProjectMeta(workdir, artifactNameInput || config?.project?.binary);
   core7.info(`Binary name: ${projectMeta.binary}`);
   const build = await buildBinaries({ workdir, targets, version: parsed.version });
