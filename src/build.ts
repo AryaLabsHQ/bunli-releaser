@@ -63,6 +63,14 @@ export async function findBuiltExecutable(opts: {
 }): Promise<string> {
   const dir = opts.multiTarget ? path.join(opts.buildOutdir, opts.target) : opts.buildOutdir
   if (!(await fileExists(dir))) {
+    if (opts.multiTarget) {
+      const compressedTargetArchive = path.join(opts.buildOutdir, `${opts.target}.tar.gz`)
+      if (await fileExists(compressedTargetArchive)) {
+        throw new Error(
+          `Expected build output dir not found for target ${opts.target}: ${dir}. Found compressed target archive ${compressedTargetArchive} instead. This usually means the CLI project is using build.compress=true. Disable build.compress when using bunli-releaser.`
+        )
+      }
+    }
     throw new Error(`Expected build output dir not found for target ${opts.target}: ${dir}`)
   }
 
@@ -76,4 +84,3 @@ export async function findBuiltExecutable(opts: {
   }
   return files[0]
 }
-

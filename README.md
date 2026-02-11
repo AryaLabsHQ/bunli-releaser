@@ -1,6 +1,6 @@
 # bunli-releaser
 
-GoReleaser-like GitHub Action for Bunli CLIs: build multi-platform standalone binaries, publish GitHub Releases, and update Homebrew taps.
+GoReleaser-like GitHub Action for Bunli CLIs: build multi-platform standalone binaries, publish GitHub Releases, and optionally update Homebrew taps.
 
 ## Usage
 
@@ -31,8 +31,9 @@ jobs:
           # workdir: "."
           # targets: "all"
           # artifact-name: "mycli"
+          # existing-assets: "fail" # or "skip"
 
-          # Homebrew (required in v1)
+          # Homebrew (optional)
           brew-tap: AryaLabsHQ/homebrew-tap
           brew-token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           # Optional:
@@ -48,12 +49,18 @@ jobs:
   - Unix: `${name}-${version}-${os}-${arch}.tar.gz`
   - Windows: `${name}-${version}-${os}-${arch}.zip`
 - Uploads archives and `checksums.txt` (sha256) to the GitHub Release for the tag.
-- Updates a Homebrew tap formula with conditional URLs + sha256 for macOS/Linux (arm64/x64).
+- Homebrew tap updates are optional. If `brew-tap` + `brew-token` are provided, the action updates a Homebrew formula with conditional URLs + sha256 for macOS/Linux (arm64/x64).
   - Homebrew update assumes the corresponding `darwin-*` and `linux-*` assets exist (use `targets: all` unless you know what you're doing).
+  - If you provide one of `brew-tap` or `brew-token` without the other, the action fails with a clear configuration error.
+- Existing asset behavior is configurable:
+  - `existing-assets: "fail"` (default): fail when a release asset already exists.
+  - `existing-assets: "skip"`: skip uploads for already-existing asset names.
+- If your project uses `build.compress=true` for multi-target builds, packaging will fail. Keep `build.compress` disabled when using bunli-releaser.
 
 ### Version Injection
 
-During build, the action sets `BUNLI_RELEASE_VERSION=<version>` in the environment. If your CLI prints its version from this env var, `--version` will reflect the release version.
+During build, the action sets `BUNLI_RELEASE_VERSION=<version>` in the build process environment.
+For compiled binaries, prefer embedding version from `package.json` (or another build-time source) rather than reading a runtime env var.
 
 ### Optional Config File
 

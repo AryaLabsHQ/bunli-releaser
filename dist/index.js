@@ -305,6 +305,14 @@ ${res.stderr}`);
 async function findBuiltExecutable(opts) {
   const dir = opts.multiTarget ? import_node_path5.default.join(opts.buildOutdir, opts.target) : opts.buildOutdir;
   if (!await fileExists(dir)) {
+    if (opts.multiTarget) {
+      const compressedTargetArchive = import_node_path5.default.join(opts.buildOutdir, `${opts.target}.tar.gz`);
+      if (await fileExists(compressedTargetArchive)) {
+        throw new Error(
+          `Expected build output dir not found for target ${opts.target}: ${dir}. Found compressed target archive ${compressedTargetArchive} instead. This usually means the CLI project is using build.compress=true. Disable build.compress when using bunli-releaser.`
+        );
+      }
+    }
     throw new Error(`Expected build output dir not found for target ${opts.target}: ${dir}`);
   }
   const files = (await listFiles(dir)).filter((p) => !p.endsWith(".map"));
@@ -429,14 +437,11 @@ async function upsertReleaseAndUpload(opts) {
     per_page: 100
   });
   const existing = new Set((existingAssets.data || []).map((a) => a.name));
-  for (const a of opts.assets) {
-    if (existing.has(a.fileName)) {
-      throw new Error(
-        `Release asset already exists for tag ${opts.tag}: ${a.fileName}. v1 is idempotent-fail by default.`
-      );
-    }
+  const uploadPlan = planUploads(opts.assets, existing, opts.existingAssetsMode, opts.tag);
+  for (const a of uploadPlan.skipped) {
+    core5.info(`Skipping existing release asset (existing-assets=skip): ${a.fileName}`);
   }
-  for (const a of opts.assets) {
+  for (const a of uploadPlan.toUpload) {
     core5.info(`Uploading release asset: ${a.fileName}`);
     const buf = await import_promises8.default.readFile(a.filePath);
     await opts.octokit.rest.repos.uploadReleaseAsset({
@@ -452,6 +457,24 @@ async function upsertReleaseAndUpload(opts) {
     });
   }
   return { releaseUrl: release.html_url };
+}
+function planUploads(assets, existing, mode, tag) {
+  const toUpload = [];
+  const skipped = [];
+  for (const a of assets) {
+    if (!existing.has(a.fileName)) {
+      toUpload.push(a);
+      continue;
+    }
+    if (mode === "skip") {
+      skipped.push(a);
+      continue;
+    }
+    throw new Error(
+      `Release asset already exists for tag ${tag}: ${a.fileName}. Set existing-assets=skip to ignore existing assets.`
+    );
+  }
+  return { toUpload, skipped };
 }
 async function getOrCreateRelease(opts) {
   try {
@@ -661,8 +684,9 @@ async function run() {
   const workdirInput = core7.getInput("workdir") || ".";
   const targetsInputRaw = (core7.getInput("targets") || "").trim();
   const artifactNameInput = core7.getInput("artifact-name") || void 0;
-  const brewTap = core7.getInput("brew-tap", { required: true });
-  const brewToken = core7.getInput("brew-token", { required: true });
+  const existingAssetsMode = parseExistingAssetsMode(core7.getInput("existing-assets"));
+  const brewTap = (core7.getInput("brew-tap") || "").trim();
+  const brewToken = (core7.getInput("brew-token") || "").trim();
   const brewFormulaPath = core7.getInput("brew-formula-path") || void 0;
   const brewPr = (core7.getInput("brew-pr") || "false").toLowerCase() === "true";
   const brewCommitMessage = core7.getInput("brew-commit-message") || void 0;
@@ -718,9 +742,21 @@ async function run() {
     repo,
     tag: parsed.tag,
     releaseName: `${projectMeta.binary} ${parsed.version}`,
+    existingAssetsMode,
     assets
   });
   core7.setOutput("release-url", release.releaseUrl);
+  const hasBrewTap = brewTap.length > 0;
+  const hasBrewToken = brewToken.length > 0;
+  if (hasBrewTap !== hasBrewToken) {
+    throw new Error(
+      'Homebrew config is partial. Provide both "brew-tap" and "brew-token", or omit both to skip Homebrew updates.'
+    );
+  }
+  if (!hasBrewTap) {
+    core7.info("Skipping Homebrew tap update (no brew-tap/brew-token provided).");
+    return;
+  }
   const hb = await updateHomebrewTap({
     brewTap,
     brewToken,
@@ -756,6 +792,11 @@ function resolveTagName() {
   throw new Error(
     `Could not resolve tag name from environment. GITHUB_REF_NAME="${process.env.GITHUB_REF_NAME}", GITHUB_REF="${process.env.GITHUB_REF}".`
   );
+}
+function parseExistingAssetsMode(input) {
+  const mode = (input || "fail").trim().toLowerCase();
+  if (mode === "fail" || mode === "skip") return mode;
+  throw new Error(`Invalid existing-assets mode: "${input}". Expected "fail" or "skip".`);
 }
 run().catch((err) => {
   const msg = err instanceof Error ? err.message : String(err);
