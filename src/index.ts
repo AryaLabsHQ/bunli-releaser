@@ -29,6 +29,14 @@ async function run(): Promise<void> {
   const brewFormulaPath = core.getInput('brew-formula-path') || undefined
   const brewPr = (core.getInput('brew-pr') || 'false').toLowerCase() === 'true'
   const brewCommitMessage = core.getInput('brew-commit-message') || undefined
+  const hasBrewTap = brewTap.length > 0
+  const hasBrewToken = brewToken.length > 0
+
+  if (hasBrewTap !== hasBrewToken) {
+    throw new Error(
+      'Homebrew config is partial. Provide both "brew-tap" and "brew-token", or omit both to skip Homebrew updates.'
+    )
+  }
 
   const repoRoot = process.env.GITHUB_WORKSPACE || process.cwd()
   const workdir = path.resolve(repoRoot, workdirInput)
@@ -98,15 +106,6 @@ async function run(): Promise<void> {
     assets
   })
   core.setOutput('release-url', release.releaseUrl)
-
-  const hasBrewTap = brewTap.length > 0
-  const hasBrewToken = brewToken.length > 0
-
-  if (hasBrewTap !== hasBrewToken) {
-    throw new Error(
-      'Homebrew config is partial. Provide both "brew-tap" and "brew-token", or omit both to skip Homebrew updates.'
-    )
-  }
 
   if (!hasBrewTap) {
     core.info('Skipping Homebrew tap update (no brew-tap/brew-token provided).')
