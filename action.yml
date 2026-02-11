@@ -1,5 +1,5 @@
 name: bunli-releaser
-description: GoReleaser-like GitHub Action for Bunli CLIs: build multi-platform standalone binaries, publish GitHub Releases, and update Homebrew taps.
+description: GoReleaser-like GitHub Action for Bunli CLIs: build multi-platform standalone binaries, publish GitHub Releases, and optionally update Homebrew taps.
 author: AryaLabsHQ
 
 inputs:
@@ -24,13 +24,18 @@ inputs:
     description: Base binary name. Defaults to package.json name normalized.
     required: false
 
+  existing-assets:
+    description: Behavior when a GitHub Release asset already exists ("fail" or "skip").
+    required: false
+    default: "fail"
+
   brew-tap:
-    description: Homebrew tap repo in owner/repo format.
-    required: true
+    description: Homebrew tap repo in owner/repo format. Optional; set with brew-token to enable Homebrew updates.
+    required: false
 
   brew-token:
-    description: Token with push rights to the Homebrew tap repo.
-    required: true
+    description: Token with push rights to the Homebrew tap repo. Optional; set with brew-tap to enable Homebrew updates.
+    required: false
 
   brew-formula-path:
     description: Path in the tap repo (e.g. Formula/mycli.rb). Defaults to Formula/<formula>.rb derived from artifact-name.

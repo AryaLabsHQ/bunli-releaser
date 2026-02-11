@@ -14,7 +14,6 @@ import { packageTargetBinary } from './packaging'
 import { writeChecksumsFile } from './checksums'
 import { upsertReleaseAndUpload } from './githubRelease'
 import { updateHomebrewTap } from './homebrew/tap'
-import type { TargetTriple } from './types'
 
 async function run(): Promise<void> {
   const githubToken = core.getInput('github-token', { required: true })
@@ -23,11 +22,21 @@ async function run(): Promise<void> {
   const targetsInputRaw = (core.getInput('targets') || '').trim()
   const artifactNameInput = core.getInput('artifact-name') || undefined
 
-  const brewTap = core.getInput('brew-tap', { required: true })
-  const brewToken = core.getInput('brew-token', { required: true })
+  const existingAssetsMode = parseExistingAssetsMode(core.getInput('existing-assets'))
+
+  const brewTap = (core.getInput('brew-tap') || '').trim()
+  const brewToken = (core.getInput('brew-token') || '').trim()
   const brewFormulaPath = core.getInput('brew-formula-path') || undefined
   const brewPr = (core.getInput('brew-pr') || 'false').toLowerCase() === 'true'
   const brewCommitMessage = core.getInput('brew-commit-message') || undefined
+  const hasBrewTap = brewTap.length > 0
+  const hasBrewToken = brewToken.length > 0
+
+  if (hasBrewTap !== hasBrewToken) {
+    throw new Error(
+      'Homebrew config is partial. Provide both "brew-tap" and "brew-token", or omit both to skip Homebrew updates.'
+    )
+  }
 
   const repoRoot = process.env.GITHUB_WORKSPACE || process.cwd()
   const workdir = path.resolve(repoRoot, workdirInput)
@@ -93,9 +102,15 @@ async function run(): Promise<void> {
     repo,
     tag: parsed.tag,
     releaseName: `${projectMeta.binary} ${parsed.version}`,
+    existingAssetsMode,
     assets
   })
   core.setOutput('release-url', release.releaseUrl)
+
+  if (!hasBrewTap) {
+    core.info('Skipping Homebrew tap update (no brew-tap/brew-token provided).')
+    return
+  }
 
   const hb = await updateHomebrewTap({
     brewTap,
@@ -136,6 +151,12 @@ function resolveTagName(): string {
   throw new Error(
     `Could not resolve tag name from environment. GITHUB_REF_NAME="${process.env.GITHUB_REF_NAME}", GITHUB_REF="${process.env.GITHUB_REF}".`
   )
+}
+
+function parseExistingAssetsMode(input: string): 'fail' | 'skip' {
+  const mode = (input || 'fail').trim().toLowerCase()
+  if (mode === 'fail' || mode === 'skip') return mode
+  throw new Error(`Invalid existing-assets mode: "${input}". Expected "fail" or "skip".`)
 }
 
 run().catch((err) => {
